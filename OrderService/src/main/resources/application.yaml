@@ -1,0 +1,85 @@
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:3306/order-service
+    username: root
+    password: rahulvj17
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+        show_sql: true
+  application:
+    name: ORDER-SERVICE
+  config:
+    import: configserver:http://localhost:9296
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      external:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - java.io.IOException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+        recordFailurePredicate:
+          - io.github.resilience4j.circuitbreaker.utils.PredicateUtils::isCircuitBreakerRecordFailure
+        ignoreExceptionPredicate:
+          - io.github.resilience4j.circuitbreaker.utils.PredicateUtils::isCircuitBreakerIgnoreException
+        slowCallDurationThreshold: 3s
+        slowCallRateThreshold: 60
+        permitRootCauseStackTrace: true
+        metrics:
+          slidingWindowType: COUNT_BASED
+          slidingWindowSize: 100
+          minimumNumberOfCalls: 50
+          percentilesHistogram:
+            enabled: true
+            numberOfSignificantValueDigits: 3
+          latencyPercentile:
+            enabled: true
+            numberOfSignificantValueDigits: 3
+          eventConsumerBufferSize: 100
+          healthIndicatorEnabled: true
+  rate-limiter:
+    instances:
+      myRateLimiter:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1s
+        timeoutDuration: 500ms
+        eventConsumerBufferSize: 100
+  retry:
+    instances:
+      myRetry:
+        maxAttempts: 3
+        waitDuration: 500ms
+        retryExceptions:
+          - java.io.IOException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+        retryOnResultPredicate:
+          - io.github.resilience4j.retry.utils.PredicateUtils::isResultRetryable
+        retryOnExceptionPredicate:
+          - io.github.resilience4j.retry.utils.PredicateUtils::isExceptionRetryable
+        exponentialBackoff:
+          initialInterval: 100ms
+          maxInterval: 5s
+          multiplier: 2
+        jitter:
+          enabled: true
+          jitterFactor: 0.5
